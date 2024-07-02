@@ -1,41 +1,44 @@
 const express = require('express');
-const { RtcTokenBuilder, RtcRole } = require('agora-access-token');
-
-const app = express();
-const port = 3000;
+const {RtcTokenBuilder, RtcRole} = require('agora-access-token');
 
 const APP_ID = '9186b68cc62240b88f8d2f186374d9e5';
 const APP_CERTIFICATE = 'f16fffc3b9254c4ebd57fbd97c0e0cc5';
+const app = express();
+const nocache = (req, resp, next) => {
+  resp.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  resp.header('Express', '-1');
+  resp.header('Pragma', 'no-cache');
+  next();
+};
 
-app.get('/access_token', (req, res) => {
-  console.log('Received request for /access_token');
+const generateAccessToken = (req, resp) => {
+  resp.header('Access-Control-Allow-Origin', '*');  
   const channelName = req.query.channelName;
+
   if (!channelName) {
-    console.log('channelName is required');
-    return res.status(400).json({ error: 'channelName is required' });
-  }
+    return resp.status(500).json({ 'error': 'channel is required' });
+  } 
 
-  const role = RtcRole.SUBSCRIBER;
-  const uid = req.query.uid || 0;
-  const expirationTimeInSeconds = 3600;
-  const currentTimestamp = Math.floor(Date.now() / 1000);
-  const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+  let uid = req.query.uid;
+  if (!uid || uid == '') {
+    uid = 0;
+  }  
+  let role = RtcRole.SUBSCRIBER;
+  if (req.query.role == 'publisher') {
+    role = RtcRole.PUBLISHER;
+  } 
+   let expireTime = req.query.expireTime;
+  if (!expireTime || expireTime == '') {
+    expireTime = 3600;
+  } else {
+    expireTime = parseInt(expireTime, 10);
+  } 
 
-  console.log(`Generating token for channelName: ${channelName}, uid: ${uid}, role: ${role}`);
+  const currentTime = Math.floor(Date.now() / 1000);
+  const privilegeExpireTime = currentTime + expireTime;  const token = RtcTokenBuilder.buildTokenWithUid(APP_ID, APP_CERTIFICATE, channelName, uid, role, privilegeExpireTime);  return resp.json({ 'token': token });
+};
 
-  const token = RtcTokenBuilder.buildTokenWithUid(
-    APP_ID,
-    APP_CERTIFICATE,
-    channelName,
-    uid,
-    role,
-    privilegeExpiredTs
-  );
-
-  console.log(`Generated token: ${token}`);
-  return res.json({ token });
-});
-
-app.listen(port, () => {
-  console.log(`Token server listening at http://localhost:${port}`);
+app.get('/access_token', nocache, generateAccessToken);const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log('listening on ' + PORT);
 });
