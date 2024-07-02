@@ -8,8 +8,10 @@ const APP_ID = '9186b68cc62240b88f8d2f186374d9e5';
 const APP_CERTIFICATE = 'f16fffc3b9254c4ebd57fbd97c0e0cc5';
 
 app.get('/access_token', (req, res) => {
+  console.log('Received request for /access_token');
   const channelName = req.query.channelName;
   if (!channelName) {
+    console.log('channelName is required');
     return res.status(400).json({ error: 'channelName is required' });
   }
 
@@ -18,6 +20,8 @@ app.get('/access_token', (req, res) => {
   const expirationTimeInSeconds = 3600;
   const currentTimestamp = Math.floor(Date.now() / 1000);
   const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+
+  console.log(`Generating token for channelName: ${channelName}, uid: ${uid}, role: ${role}`);
 
   const token = RtcTokenBuilder.buildTokenWithUid(
     APP_ID,
@@ -28,6 +32,7 @@ app.get('/access_token', (req, res) => {
     privilegeExpiredTs
   );
 
+  console.log(`Generated token: ${token}`);
   return res.json({ token });
 });
 
